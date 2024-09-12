@@ -7,7 +7,7 @@ from confluent_kafka.admin import AdminClient
 def kafka_admin():
     broker = "localhost:9092"
     return AdminClient({'bootstrap.servers': broker})
-
+ 
 @pytest.fixture
 def kafka_producer():
     broker = "localhost:9092"
@@ -54,7 +54,6 @@ def test_broker_exists(kafka_admin):
         print(f"Topics disponibles: {list(cluster_metadata.topics)}")
     except KafkaException as e:
         pytest.fail(f"Error al conectarse al broker de Kafka: {e}")
-
 
 def test_receive_message(kafka_consumer):
     topic = "test-topic"

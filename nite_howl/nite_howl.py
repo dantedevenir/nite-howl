@@ -46,6 +46,7 @@ class NiteHowl:
         parquet_buffer = self.package(table)
         self.producer.produce(topic, parquet_buffer.getvalue())
         self.producer.flush()
+        print(f"Send to broker the topic {topic}")
         
     def radar(self):
         if not self.topics:
