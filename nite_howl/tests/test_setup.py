@@ -60,6 +60,7 @@ def test_receive_message(kafka_consumer):
     test_message = "Hello, Kafka!"
     timeout = 30
     received_message = None
+    received_topic = None
     try:
         while True:
             msg = kafka_consumer.poll(timeout)
@@ -72,9 +73,12 @@ def test_receive_message(kafka_consumer):
                     raise KafkaException(msg.error())
             else:
                 received_message = msg.value().decode('utf-8')  # Decodifica el mensaje a string
+                received_topic = msg.topic()
                 break
     except KafkaException as e:
         pytest.fail(f"Error en el consumidor de Kafka: {e}")
 
-    assert received_message == test_message, f"Se esperaba '{test_message}', pero se recibió '{received_message}'"
+    assert received_message == test_message, f"Se esperaba el mensaje '{test_message}', pero se recibió '{received_message}'"
+    assert received_topic == topic, f"Se esperaba el topic '{topic}', pero se recibió '{received_topic}'"
     print(f"Mensaje recibido: {received_message}")
+    print(f"Topic recibido: {received_topic}")

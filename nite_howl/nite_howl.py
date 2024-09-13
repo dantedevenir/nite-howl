@@ -50,7 +50,7 @@ class NiteHowl:
         
     def radar(self):
         if not self.topics:
-            return None, None
+            yield None, None
         while True:
             msg = self.consumer.poll(1.0)
             if msg is None:
@@ -60,6 +60,5 @@ class NiteHowl:
                     continue
                 else:
                     raise KafkaException(msg.error())
-            break
-        table = self.unpackage(msg.value())
-        return table, msg.topic
+            table = self.unpackage(msg.value())
+            yield table, msg.topic()
