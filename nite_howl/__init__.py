@@ -1,3 +1,3 @@
 from .nite_howl import NiteHowl
-from .journal import Minute
-__all__ = ["NiteHowl", "Minute"]
+from .journal import minute
+__all__ = ["NiteHowl", "minute"]
