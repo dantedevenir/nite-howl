@@ -2,6 +2,7 @@ from io import BytesIO
 import pyarrow.csv as csv
 import pyarrow.parquet as pq
 import pyarrow as pa
+from .journal import minute
 
 from confluent_kafka import Producer, Consumer, KafkaError, KafkaException
 #export ROOT_PATH=/samba-data;export ENV_PATH=/samba-data/.env;export BROKER=localhost:9092;export TOPIC=testing;export GROUP=tmp
@@ -33,7 +34,7 @@ class NiteHowl:
         return table
         
     def send(self, topic, df = None, path = None):
-        if not (path or df):
+        if not (path or (df is not None and not df.empty)):
             return
         
         if path:
@@ -46,7 +47,7 @@ class NiteHowl:
         parquet_buffer = self.package(table)
         self.producer.produce(topic, parquet_buffer.getvalue())
         self.producer.flush()
-        print(f"Send to broker the topic {topic}")
+        minute.register(f"Send to broker the topic {topic}")
         
     def radar(self):
         if not self.topics:
