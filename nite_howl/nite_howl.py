@@ -33,15 +33,12 @@ class NiteHowl:
         return table
         
     def send(self, topic, df = None, path = None):
-        if path and df:
-            return
-        
-        if df.empty():
+        if not (path or df):
             return
         
         if path:
             table = csv.read_csv(path)
-        elif not df.empty():
+        else:
             buffer = BytesIO()
             table = pa.Table.from_pandas(df)
             pq.write_table(table, buffer)
