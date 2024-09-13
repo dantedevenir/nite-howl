@@ -13,7 +13,9 @@ class Minute:
         )
         self.logger = logging.getLogger()
         
-    def register(self, text) -> None:
-        self.logger.info(text)
-
+    def register(self, type, text) -> None:
+        if type == "error":
+            self.logger.error(text)
+        else:
+            self.logger.info(text)
 minute = Minute()
