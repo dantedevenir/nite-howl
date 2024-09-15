@@ -49,7 +49,7 @@ class NiteHowl:
         parquet_buffer = self.package(table)
         self.producer.produce(topic, parquet_buffer.getvalue(), key=key, headers=headers)
         self.producer.flush()
-        minute.register("info", f"Send to broker the topic {topic}")
+        minute.register("info", f"Send message to the topic: {topic}, key: {key} and headers: {headers}")
         
     def radar(self):
         if not self.topics:
@@ -63,6 +63,8 @@ class NiteHowl:
                     continue
                 else:
                     raise KafkaException(msg.error())
+            
+            minute.register("warning", f"catch a message from the topic: {msg.topic()}, key: {msg.key().decode('utf-8')} and headers: {{k: v.decode('utf-8') for k, v in msg.headers()}}")
             if msg.key().decode('utf-8') != self.key and self.key:
                 continue
             

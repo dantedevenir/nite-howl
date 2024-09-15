@@ -16,6 +16,8 @@ class Minute:
     def register(self, type, text) -> None:
         if type == "error":
             self.logger.error(text)
+        elif type == "warning":
+            self.logger.warning(text)
         else:
             self.logger.info(text)
 minute = Minute()
