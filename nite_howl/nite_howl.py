@@ -20,6 +20,9 @@ class NiteHowl:
                 'group.id': group
             })
             self.consumer.subscribe(topics.split(","))
+            minute.register("info", f"Consumer conf: {broker}, group.id: {group} and topics: {topics.split(",")}")
+        minute.register("info", f"Producer conf: {broker}, key: {key} and headers: {headers}")
+        
     
     def package(self, table) -> BytesIO:
         parquet_buffer = BytesIO()
