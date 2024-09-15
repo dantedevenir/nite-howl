@@ -52,7 +52,7 @@ class NiteHowl:
         
     def radar(self):
         if not self.topics:
-            yield None, None
+            yield None, None, None
         while True:
             msg = self.consumer.poll(1.0)
             if msg is None:
