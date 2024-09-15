@@ -31,6 +31,7 @@ def kafka_consumer():
 
 def test_send_message(kafka_producer):
     topic = "test-topic"
+    key = "test-key"
     test_message = "Hello, Kafka!"
     
     # Enviar un mensaje
@@ -40,7 +41,7 @@ def test_send_message(kafka_producer):
         else:
             print(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
-    kafka_producer.produce(topic, test_message, callback=delivery_report)
+    kafka_producer.produce(topic, test_message, key=key, callback=delivery_report)
     kafka_producer.flush()
 
     # Agregar un pequeño retraso para asegurar que el mensaje se procese
@@ -58,9 +59,11 @@ def test_broker_exists(kafka_admin):
 def test_receive_message(kafka_consumer):
     topic = "test-topic"
     test_message = "Hello, Kafka!"
+    key = "test-key"
     timeout = 30
     received_message = None
     received_topic = None
+    received_key = None
     try:
         while True:
             msg = kafka_consumer.poll(timeout)
@@ -71,14 +74,21 @@ def test_receive_message(kafka_consumer):
                     continue
                 else:
                     raise KafkaException(msg.error())
+            
+            received_key = msg.key().decode('utf-8')
+            if  key != msg.key().decode('utf-8'):
+                pytest.fail(f"Se esperaba el key '{key}', pero se recibió '{received_key}'")
             else:
                 received_message = msg.value().decode('utf-8')  # Decodifica el mensaje a string
                 received_topic = msg.topic()
                 break
+            
     except KafkaException as e:
         pytest.fail(f"Error en el consumidor de Kafka: {e}")
 
     assert received_message == test_message, f"Se esperaba el mensaje '{test_message}', pero se recibió '{received_message}'"
     assert received_topic == topic, f"Se esperaba el topic '{topic}', pero se recibió '{received_topic}'"
+    assert received_key == key, f"Se esperaba el key '{key}', pero se recibió '{received_key}'"
     print(f"Mensaje recibido: {received_message}")
     print(f"Topic recibido: {received_topic}")
+    print(f"Key recibido: {received_topic}")

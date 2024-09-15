@@ -9,9 +9,10 @@ from confluent_kafka import Producer, Consumer, KafkaError, KafkaException
 
 class NiteHowl:
     
-    def __init__(self, broker, group = None, topics = None) -> None:
+    def __init__(self, broker, group = None, topics = None, key = None) -> None:
         self.producer = Producer({'bootstrap.servers': broker})
         self.topics = topics
+        self.key = key
         if topics and group:
             self.consumer = Consumer({
                 'bootstrap.servers': broker,
@@ -45,7 +46,7 @@ class NiteHowl:
             pq.write_table(table, buffer)
             
         parquet_buffer = self.package(table)
-        self.producer.produce(topic, parquet_buffer.getvalue())
+        self.producer.produce(topic, parquet_buffer.getvalue(), key=self.key)
         self.producer.flush()
         minute.register("info", f"Send to broker the topic {topic}")
         
@@ -61,5 +62,7 @@ class NiteHowl:
                     continue
                 else:
                     raise KafkaException(msg.error())
+            if msg.key().decode('utf-8') != self.key and self.key:
+                continue
             table = self.unpackage(msg.value())
-            yield table, msg.topic()
+            yield table, msg.topic(), msg.key().decode('utf-8')
