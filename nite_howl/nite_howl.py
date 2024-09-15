@@ -34,7 +34,7 @@ class NiteHowl:
         table = pq.read_table(parquet_buffer)
         return table
         
-    def send(self, topic, df = None, path = None):
+    def send(self, topic, df = None, path = None, key = None):
         if not (path or (df is not None and not df.empty)):
             return
         
@@ -46,7 +46,7 @@ class NiteHowl:
             pq.write_table(table, buffer)
             
         parquet_buffer = self.package(table)
-        self.producer.produce(topic, parquet_buffer.getvalue(), key=self.key)
+        self.producer.produce(topic, parquet_buffer.getvalue(), key=key)
         self.producer.flush()
         minute.register("info", f"Send to broker the topic {topic}")
         
