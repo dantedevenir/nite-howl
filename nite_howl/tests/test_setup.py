@@ -33,6 +33,7 @@ def test_send_message(kafka_producer):
     topic = "test-topic"
     key = "test-key"
     test_message = "Hello, Kafka!"
+    headers = {"subregistry": "bs"}
     
     # Enviar un mensaje
     def delivery_report(err, msg):
@@ -41,7 +42,7 @@ def test_send_message(kafka_producer):
         else:
             print(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
-    kafka_producer.produce(topic, test_message, key=key, callback=delivery_report)
+    kafka_producer.produce(topic, test_message, key=key, headers=headers, callback=delivery_report)
     kafka_producer.flush()
 
     # Agregar un pequeño retraso para asegurar que el mensaje se procese
@@ -60,10 +61,12 @@ def test_receive_message(kafka_consumer):
     topic = "test-topic"
     test_message = "Hello, Kafka!"
     key = "test-key"
+    headers = {"subregistry": "bs"}
     timeout = 30
     received_message = None
     received_topic = None
     received_key = None
+    received_headers = None
     try:
         while True:
             msg = kafka_consumer.poll(timeout)
@@ -81,6 +84,7 @@ def test_receive_message(kafka_consumer):
             else:
                 received_message = msg.value().decode('utf-8')  # Decodifica el mensaje a string
                 received_topic = msg.topic()
+                received_headers = {k: v.decode('utf-8') for k, v in msg.headers()}
                 break
             
     except KafkaException as e:
@@ -89,6 +93,8 @@ def test_receive_message(kafka_consumer):
     assert received_message == test_message, f"Se esperaba el mensaje '{test_message}', pero se recibió '{received_message}'"
     assert received_topic == topic, f"Se esperaba el topic '{topic}', pero se recibió '{received_topic}'"
     assert received_key == key, f"Se esperaba el key '{key}', pero se recibió '{received_key}'"
+    assert received_headers == headers, f"Se esperaba el header '{headers}', pero se recibió '{received_headers}'"
     print(f"Mensaje recibido: {received_message}")
     print(f"Topic recibido: {received_topic}")
     print(f"Key recibido: {received_topic}")
+    print(f"Headers recibido: {received_headers}")

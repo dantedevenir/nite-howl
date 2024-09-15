@@ -9,10 +9,11 @@ from confluent_kafka import Producer, Consumer, KafkaError, KafkaException
 
 class NiteHowl:
     
-    def __init__(self, broker, group = None, topics = None, key = None) -> None:
+    def __init__(self, broker, group = None, topics = None, key = None, headers = None) -> None:
         self.producer = Producer({'bootstrap.servers': broker})
         self.topics = topics
         self.key = key
+        self.headers = headers
         if topics and group:
             self.consumer = Consumer({
                 'bootstrap.servers': broker,
@@ -52,7 +53,7 @@ class NiteHowl:
         
     def radar(self):
         if not self.topics:
-            yield None, None, None
+            yield None, None, None, None
         while True:
             msg = self.consumer.poll(1.0)
             if msg is None:
@@ -64,5 +65,9 @@ class NiteHowl:
                     raise KafkaException(msg.error())
             if msg.key().decode('utf-8') != self.key and self.key:
                 continue
+            
+            if {k: v.decode('utf-8') for k, v in msg.headers()} != self.headers and self.headers:
+                continue
+            
             table = self.unpackage(msg.value())
-            yield table, msg.topic(), msg.key().decode('utf-8')
+            yield table, msg.topic(), msg.key().decode('utf-8'), {k: v.decode('utf-8') for k, v in msg.headers()}
