@@ -18,22 +18,22 @@ def kafka_producer():
 @pytest.fixture
 def kafka_consumer():
     broker = "localhost:9092"
-    group_id = "test-group"
-    topic = "test-topic"
+    group_id = "tmp_3"
+    topic = "molina_3"
     consumer = Consumer({
         'bootstrap.servers': broker,
         'group.id': group_id,
-        'auto.offset.reset': 'earliest'
+        'auto.offset.reset': 'earliest',
     })
     consumer.subscribe([topic])
     yield consumer
     consumer.close()
 
 def test_send_message(kafka_producer):
-    topic = "test-topic"
-    key = "test-key"
+    topic = "molina_3"
+    key = "mask"
     test_message = "Hello, Kafka!"
-    headers = {"subregistry": "bs"}
+    headers = {"subregistry": "BS"}
     
     # Enviar un mensaje
     def delivery_report(err, msg):
@@ -58,11 +58,11 @@ def test_broker_exists(kafka_admin):
         pytest.fail(f"Error al conectarse al broker de Kafka: {e}")
 
 def test_receive_message(kafka_consumer):
-    topic = "test-topic"
+    topic = "molina_3"
     test_message = "Hello, Kafka!"
-    key = "test-key"
-    headers = {"subregistry": "bs"}
-    timeout = 30
+    key = "mask"
+    headers = {"subregistry": "BS"}
+    timeout = 10
     received_message = None
     received_topic = None
     received_key = None

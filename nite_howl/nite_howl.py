@@ -67,8 +67,9 @@ class NiteHowl:
                 else:
                     raise KafkaException(msg.error())
             
-            minute.register("warning", f"catch a message from the topic: {msg.topic()}, key: {msg.key().decode('utf-8')} and headers: {{k: v.decode('utf-8') for k, v in msg.headers()}}")
-            if msg.key().decode('utf-8') != self.key and self.key:
+            if msg.key() and msg.key().decode('utf-8') != self.key and self.key:
+                headers = {k: v.decode('utf-8') for k, v in msg.headers()}
+                minute.register("warning", f"catch a message from the topic: {msg.topic()}, key: {msg.key().decode('utf-8')} and headers: {headers}")
                 continue
             
             if {k: v.decode('utf-8') for k, v in msg.headers()} != self.headers and self.headers:
