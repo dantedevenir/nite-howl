@@ -19,7 +19,7 @@ def kafka_producer():
 def kafka_consumer():
     broker = "localhost:9092"
     group_id = "tmp_3"
-    topic = "molina_3"
+    topic = "molina"
     consumer = Consumer({
         'bootstrap.servers': broker,
         'group.id': group_id,
@@ -30,9 +30,9 @@ def kafka_consumer():
     consumer.close()
 
 def test_send_message(kafka_producer):
-    topic = "molina_3"
+    topic = "molina"
     key = "mask"
-    test_message = "Hello, Kafka!"
+    test_message = "Mas"
     headers = {"subregistry": "BS"}
     
     # Enviar un mensaje
@@ -58,8 +58,8 @@ def test_broker_exists(kafka_admin):
         pytest.fail(f"Error al conectarse al broker de Kafka: {e}")
 
 def test_receive_message(kafka_consumer):
-    topic = "molina_3"
-    test_message = "Hello, Kafka!"
+    topic = "molina"
+    test_message = "Mas"
     key = "mask"
     headers = {"subregistry": "BS"}
     timeout = 10
@@ -96,5 +96,5 @@ def test_receive_message(kafka_consumer):
     assert received_headers == headers, f"Se esperaba el header '{headers}', pero se recibió '{received_headers}'"
     print(f"Mensaje recibido: {received_message}")
     print(f"Topic recibido: {received_topic}")
-    print(f"Key recibido: {received_topic}")
+    print(f"Key recibido: {received_key}")
     print(f"Headers recibido: {received_headers}")

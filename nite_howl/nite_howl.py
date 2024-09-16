@@ -17,7 +17,9 @@ class NiteHowl:
         if topics and group:
             self.consumer = Consumer({
                 'bootstrap.servers': broker,
-                'group.id': group
+                'group.id': group,
+                'auto.offset.reset': 'latest',
+                'enable.auto.commit': False
             })
             self.consumer.subscribe(topics.split(","))
             minute.register("info", f"Consumer conf: {broker}, group.id: {group} and topics: {topics.split(",")}")
@@ -37,6 +39,14 @@ class NiteHowl:
         parquet_buffer.seek(0)
         table = pq.read_table(parquet_buffer)
         return table
+
+    def delivery_report(err, msg):
+        """ Called once for each message produced to indicate delivery result. """
+        if err is not None:
+            minute.register("error", f'Message delivery failed: {err}')
+        else:
+            minute.register("info", f'Message delivered to {msg.topic()} [{msg.partition()}]')
+
         
     def send(self, topic, df = None, path = None, key = None, headers = None):
         if not (path or (df is not None and not df.empty)):
@@ -45,35 +55,41 @@ class NiteHowl:
         if path:
             table = csv.read_csv(path)
         else:
-            buffer = BytesIO()
             table = pa.Table.from_pandas(df)
-            pq.write_table(table, buffer)
-            
+        self.producer.poll(0)
         parquet_buffer = self.package(table)
-        self.producer.produce(topic, parquet_buffer.getvalue(), key=key, headers=headers)
+        self.producer.produce(topic=topic, value=parquet_buffer.getvalue(), key=key, headers=headers, callback=self.delivery_report)
         self.producer.flush()
+        minute.register("info", f"Message previous to change to buffer: {table}")
         minute.register("info", f"Send message to the topic: {topic}, key: {key} and headers: {headers}")
         
-    def radar(self):
+    def radar(self, timeout=1.0):
         if not self.topics:
+            minute.register("error", f"The user didn't define topics: {self.topics}")
             yield None, None, None, None
-        while True:
-            msg = self.consumer.poll(1.0)
-            if msg is None:
-                continue
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
+
+        try:
+            while True:
+                msg = self.consumer.poll(timeout)
+                if msg is None:
                     continue
-                else:
-                    raise KafkaException(msg.error())
-            
-            if msg.key() and msg.key().decode('utf-8') != self.key and self.key:
-                headers = {k: v.decode('utf-8') for k, v in msg.headers()}
-                minute.register("warning", f"catch a message from the topic: {msg.topic()}, key: {msg.key().decode('utf-8')} and headers: {headers}")
-                continue
-            
-            if {k: v.decode('utf-8') for k, v in msg.headers()} != self.headers and self.headers:
-                continue
-            
-            table = self.unpackage(msg.value())
-            yield table, msg.topic(), msg.key().decode('utf-8'), {k: v.decode('utf-8') for k, v in msg.headers()}
+                if msg.error():
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                        continue
+                    else:
+                        raise KafkaException(msg.error())
+
+                headers = {k: v.decode('utf-8') for k, v in msg.headers() or {}}
+                key = msg.key().decode('utf-8') if msg.key() else None
+
+                if (self.key and key != self.key) or (self.headers and headers != self.headers):
+                    minute.register("warning", f"Message filtered: topic: {msg.topic()}, key: {key}, headers: {headers}")
+                    continue
+
+                minute.register("info", f"Message previous to unpackage to table: {msg.value()}")
+                table = self.unpackage(msg.value())
+                
+                self.consumer.commit(offsets=[msg], asynchronous=False)
+                yield table, msg.topic(), key, headers
+        finally:
+            self.consumer.close()
