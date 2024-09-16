@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nite_howl"
-version = "0.1.19"
+version = "0.1.20"
 description = ""
 authors = ["Dante Devenir <dantedevenir@outlook.com>"]
 readme = "README.md"
