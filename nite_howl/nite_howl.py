@@ -24,15 +24,7 @@ class NiteHowl:
                 'enable.auto.commit': True,
                 'auto.commit.interval.ms': 5000,
             })
-            try:
-                self.consumer.subscribe(topics)
-            except KafkaException as e:
-                if e.args[0].code() == KafkaError._UNKNOWN_TOPIC_OR_PART:
-                    self.admin = AdminClient({'bootstrap.servers': self.broker})
-                    minute.register(f"Error: {e}. los tópicos '{", ".join(self.topics)}' no están disponible. Intentando crear...")
-                    self.create_topics_if_not_exists()
-                else:
-                    raise  KafkaException(e)
+            self.consumer.subscribe(topics)
             minute.register("info", f"Consumer conf: {broker}, group.id: {group} and topics: {topics}")
         minute.register("info", f"Producer conf: {broker}, key: {key} and headers: {headers}")
     
@@ -46,7 +38,8 @@ class NiteHowl:
             ]
 
             if topics_to_create:
-                minute.register("info", f"The topics {', '.join(self.topics)} don't exist. Try creating...")
+                minute.register("info", f"The topics [{', '.join(self.topics)}] doesn't exist.")
+                minute.register("info", "Try creating...")
                 futures = self.admin.create_topics(topics_to_create)
                 for topic, future in futures.items():
                     try:
@@ -102,8 +95,8 @@ class NiteHowl:
                         continue
                     elif msg.error().code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
                         self.admin = AdminClient({'bootstrap.servers': self.broker})
-                        minute.register("error", f"The topics '{", ".join(self.topics)}' doesn't exist. Try creating...")
                         self.create_topics_if_not_exists()
+                        continue
                     else:
                         raise KafkaException(msg.error())
 
