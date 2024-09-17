@@ -86,6 +86,7 @@ class NiteHowl:
             yield None, None, None, None
 
         try:
+            minute.register("error", f"Listening the topics {[topic for topic in self.consumer.list_topics().topics]}")
             while True:
                 msg = self.consumer.poll(timeout)
                 if msg is None:
