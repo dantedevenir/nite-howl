@@ -78,7 +78,7 @@ class NiteHowl:
         parquet_buffer = self.package(table)
         self.producer.produce(topic=topic, value=parquet_buffer.getvalue(), key=key, headers=headers)
         self.producer.flush()
-        minute.register("info", f"Send message to the topic '{self.topics}', key '{key}' and headers '{headers}'")
+        minute.register("info", f"Send message to the topic '{topic}', key '{key}' and headers '{headers}'")
         
     def radar(self, timeout=1.0):
         if not self.topics:
