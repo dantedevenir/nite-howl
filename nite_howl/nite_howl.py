@@ -4,13 +4,15 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 from .journal import minute
 
-from confluent_kafka import Producer, Consumer, KafkaError, KafkaException, TopicPartition
+from confluent_kafka import Producer, Consumer, KafkaError, KafkaException
+from confluent_kafka.admin import AdminClient, NewTopic
 #export ROOT_PATH=/samba-data;export ENV_PATH=/samba-data/.env;export BROKER=localhost:9092;export TOPIC=testing;export GROUP=tmp
 
 class NiteHowl:
     
-    def __init__(self, broker, group = None, topics = None, key = None, headers = None) -> None:
-        self.producer = Producer({'bootstrap.servers': broker})
+    def __init__(self, broker, group = None, topics = [], key = None, headers = None) -> None:
+        self.broker = broker
+        self.producer = Producer({'bootstrap.servers': self.broker})
         self.topics = topics
         self.key = key
         self.headers = headers
@@ -22,11 +24,41 @@ class NiteHowl:
                 'enable.auto.commit': True,
                 'auto.commit.interval.ms': 5000,
             })
-            self.consumer.subscribe(topics.split(","))
-            minute.register("info", f"Consumer conf: {broker}, group.id: {group} and topics: {topics.split(",")}")
+            try:
+                self.consumer.subscribe(topics)
+            except KafkaException as e:
+                if e.args[0].code() == KafkaError._UNKNOWN_TOPIC_OR_PART:
+                    self.admin = AdminClient({'bootstrap.servers': self.broker})
+                    minute.register(f"Error: {e}. los tópicos '{", ".join(self.topics)}' no están disponible. Intentando crear...")
+                    self.create_topics_if_not_exists()
+                else:
+                    raise  KafkaException(e)
+            minute.register("info", f"Consumer conf: {broker}, group.id: {group} and topics: {topics}")
         minute.register("info", f"Producer conf: {broker}, key: {key} and headers: {headers}")
-        
     
+    def create_topics_if_not_exists(self):
+        try:
+            # Verificar los topics existentes
+            existing_topics = self.admin.list_topics(timeout=10).topics
+            topics_to_create = [
+                NewTopic(topic, num_partitions=1, replication_factor=1)
+                for topic in self.topics if topic not in existing_topics
+            ]
+
+            if topics_to_create:
+                minute.register("info", f"The topics {', '.join(self.topics)} don't exist. Try creating...")
+                futures = self.admin.create_topics(topics_to_create)
+                for topic, future in futures.items():
+                    try:
+                        future.result()  # Espera a que se complete la operación
+                        minute.register("info", f"The topic '{topic}' has been created.")
+                    except KafkaException as e:
+                        minute.register("error", f"Error creating topic '{topic}': {e}")
+            else:
+                minute.register("info", "All topics exist.")
+        except KafkaException as e:
+            minute.register("error", f"Error checking topics: {e}")
+        
     def package(self, table) -> BytesIO:
         parquet_buffer = BytesIO()
         with pq.ParquetWriter(parquet_buffer, table.schema) as writer:
@@ -68,6 +100,10 @@ class NiteHowl:
                 if msg.error():
                     if msg.error().code() == KafkaError._PARTITION_EOF:
                         continue
+                    elif msg.error().code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
+                        self.admin = AdminClient({'bootstrap.servers': self.broker})
+                        minute.register("error", f"The topics '{", ".join(self.topics)}' doesn't exist. Try creating...")
+                        self.create_topics_if_not_exists()
                     else:
                         raise KafkaException(msg.error())
 

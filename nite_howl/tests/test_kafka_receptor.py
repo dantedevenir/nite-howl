@@ -7,12 +7,12 @@ from confluent_kafka import KafkaException
 def setup_kafka():
     broker = "localhost:9092"
     group_id = "test_group"
-    topic = "test_topic"
+    topic = "test_topic_2"
     key = "test_key"
     headers = {"test_header": "value"}
     
     # Instancia del consumidor
-    kafka = NiteHowl(broker=broker, group=group_id, topics=topic, key=key, headers=headers)
+    kafka = NiteHowl(broker=broker, group=group_id, topics=topic.split(","), key=key, headers=headers)
     yield kafka
     
     # Cleanup if necessary
@@ -20,7 +20,7 @@ def setup_kafka():
 def test_consume_message(setup_kafka):
     kafka = setup_kafka
     timeout = 1.0
-    topic = "test_topic"
+    topic = "test_topic_2"
     key = "test_key"
     headers = {"test_header": "value"}
     test_message = "Hello!!!!!!!!!"
