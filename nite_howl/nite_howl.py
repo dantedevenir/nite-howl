@@ -4,7 +4,7 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 from .journal import minute
 
-from confluent_kafka import Producer, Consumer, KafkaError, KafkaException
+from confluent_kafka import Producer, Consumer, KafkaError, KafkaException, TopicPartition
 #export ROOT_PATH=/samba-data;export ENV_PATH=/samba-data/.env;export BROKER=localhost:9092;export TOPIC=testing;export GROUP=tmp
 
 class NiteHowl:
@@ -19,7 +19,8 @@ class NiteHowl:
                 'bootstrap.servers': broker,
                 'group.id': group,
                 'auto.offset.reset': 'latest',
-                'enable.auto.commit': False
+                'enable.auto.commit': True,
+                'auto.commit.interval.ms': 5000,
             })
             self.consumer.subscribe(topics.split(","))
             minute.register("info", f"Consumer conf: {broker}, group.id: {group} and topics: {topics.split(",")}")
@@ -39,14 +40,6 @@ class NiteHowl:
         parquet_buffer.seek(0)
         table = pq.read_table(parquet_buffer)
         return table
-
-    def delivery_report(err, msg):
-        """ Called once for each message produced to indicate delivery result. """
-        if err is not None:
-            minute.register("error", f'Message delivery failed: {err}')
-        else:
-            minute.register("info", f'Message delivered to {msg.topic()} [{msg.partition()}]')
-
         
     def send(self, topic, df = None, path = None, key = None, headers = None):
         if not (path or (df is not None and not df.empty)):
@@ -58,8 +51,9 @@ class NiteHowl:
             table = pa.Table.from_pandas(df)
         self.producer.poll(0)
         parquet_buffer = self.package(table)
-        self.producer.produce(topic=topic, value=parquet_buffer.getvalue(), key=key, headers=headers, callback=self.delivery_report)
+        self.producer.produce(topic=topic, value=parquet_buffer.getvalue(), key=key, headers=headers)
         self.producer.flush()
+        minute.register("info", f"Send message to the topic '{self.topics}', key '{key}' and headers '{headers}'")
         
     def radar(self, timeout=1.0):
         if not self.topics:
@@ -86,7 +80,6 @@ class NiteHowl:
 
                 table = self.unpackage(msg.value())
                 
-                self.consumer.commit(offsets=[msg], asynchronous=False)
                 yield table, msg.topic(), key, headers
         finally:
             self.consumer.close()

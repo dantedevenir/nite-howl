@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nite_howl"
-version = "0.1.22"
+version = "0.1.23"
 description = ""
 authors = ["Dante Devenir <dantedevenir@outlook.com>"]
 readme = "README.md"
@@ -22,6 +22,7 @@ types_requests = "^2.32.0"
 pylint = "^3.2.6"
 pandas = "^2.2.2"
 pytest-xdist = "^3.6.1"
+pytest-asyncio = "^0.21.0"
 
 [build-system]
 requires = ["poetry-core"]
