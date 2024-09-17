@@ -60,8 +60,6 @@ class NiteHowl:
         parquet_buffer = self.package(table)
         self.producer.produce(topic=topic, value=parquet_buffer.getvalue(), key=key, headers=headers, callback=self.delivery_report)
         self.producer.flush()
-        minute.register("info", f"Message previous to change to buffer: {table}")
-        minute.register("info", f"Send message to the topic: {topic}, key: {key} and headers: {headers}")
         
     def radar(self, timeout=1.0):
         if not self.topics:
@@ -86,7 +84,6 @@ class NiteHowl:
                     minute.register("warning", f"Message filtered: topic: {msg.topic()}, key: {key}, headers: {headers}")
                     continue
 
-                minute.register("info", f"Message previous to unpackage to table: {msg.value()}")
                 table = self.unpackage(msg.value())
                 
                 self.consumer.commit(offsets=[msg], asynchronous=False)
