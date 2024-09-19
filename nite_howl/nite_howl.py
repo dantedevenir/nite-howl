@@ -1,18 +1,19 @@
-from io import BytesIO
 import pyarrow.csv as csv
-import pyarrow.parquet as pq
-import pyarrow as pa
 from .journal import minute
+import pickle as pkl
+import pandas as pd
+from pathlib import Path
 
 from confluent_kafka import Producer, Consumer, KafkaError, KafkaException
 from confluent_kafka.admin import AdminClient, NewTopic
-#export ROOT_PATH=/samba-data;export ENV_PATH=/samba-data/.env;export BROKER=localhost:9092;export TOPIC=testing;export GROUP=tmp
 
 class NiteHowl:
     
     def __init__(self, broker, group = None, topics = [], key = None, headers = None) -> None:
         self.broker = broker
-        self.producer = Producer({'bootstrap.servers': self.broker})
+        self.producer = Producer({
+            'bootstrap.servers': self.broker
+        })
         self.topics = topics
         self.key = key
         self.headers = headers
@@ -22,7 +23,7 @@ class NiteHowl:
                 'group.id': group,
                 'auto.offset.reset': 'latest',
                 'enable.auto.commit': True,
-                'auto.commit.interval.ms': 5000,
+                'auto.commit.interval.ms': 5000
             })
             self.consumer.subscribe(topics)
             minute.register("info", f"Consumer conf: {broker}, group.id: {group} and topics: {topics}")
@@ -52,33 +53,12 @@ class NiteHowl:
         except KafkaException as e:
             minute.register("error", f"Error checking topics: {e}")
         
-    def package(self, table) -> BytesIO:
-        parquet_buffer = BytesIO()
-        with pq.ParquetWriter(parquet_buffer, table.schema) as writer:
-            writer.write_table(table)
-            
-        parquet_buffer.seek(0)
-        return parquet_buffer
-    
-    def unpackage(self, parquet_bytes):
-        parquet_buffer = BytesIO(parquet_bytes)
-        parquet_buffer.seek(0)
-        table = pq.read_table(parquet_buffer)
-        return table
-        
-    def send(self, topic, df = None, path = None, key = None, headers = None):
-        if not (path or (df is not None and not df.empty)):
-            return
-        
-        if path:
-            table = csv.read_csv(path)
-        else:
-            table = pa.Table.from_pandas(df)
+    def send(self, topic, msg, key = None, headers = None):
         self.producer.poll(0)
-        parquet_buffer = self.package(table)
-        self.producer.produce(topic=topic, value=parquet_buffer.getvalue(), key=key, headers=headers)
+        self.producer.produce(topic=topic, value=pkl.dumps(msg), key=key, headers=headers)
         self.producer.flush()
         minute.register("info", f"Send message to the topic '{topic}', key '{key}' and headers '{headers}'")
+        minute.register("debug", "Esto sale en debug")
         
     def radar(self, timeout=1.0):
         if not self.topics:
@@ -107,9 +87,25 @@ class NiteHowl:
                 if (self.key and key != self.key) or (self.headers and headers != self.headers):
                     minute.register("warning", f"Message filtered: topic: {msg.topic()}, key: {key}, headers: {headers}")
                     continue
-
-                table = self.unpackage(msg.value())
                 
-                yield table, msg.topic(), key, headers
+                data = pkl.loads(msg.value())
+                
+                if isinstance(data, str):
+                    type = str
+                    minute.register("info", f"I catch a string")
+                elif isinstance(data, pd.DataFrame):
+                    type = pd.DataFrame
+                    minute.register("info", f"I catch a Pandas Dataframe")
+                elif isinstance(data, dict):
+                    type = dict
+                    minute.register("info", f"I catch a json")
+                elif isinstance(data, list):
+                    type = list
+                    minute.register("info", f"I catch an array")  
+                else:
+                    minute.register("info", f"I catch something inusual")
+                    return                
+                
+                yield data, msg.topic(), key, headers, type
         finally:
             self.consumer.close()

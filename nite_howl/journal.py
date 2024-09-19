@@ -18,6 +18,8 @@ class Minute:
             self.logger.error(text)
         elif type == "warning":
             self.logger.warning(text)
+        elif type == "debug":
+            self.logger.debug(text)
         else:
             self.logger.info(text)
 minute = Minute()
