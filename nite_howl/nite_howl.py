@@ -63,7 +63,7 @@ class NiteHowl:
     def radar(self, timeout=1.0):
         if not self.topics:
             minute.register("error", f"The user didn't define topics: {self.topics}")
-            yield None, None, None, None
+            yield None, None, None, None, None
 
         try:
             minute.register("error", f"Listening the topics {[topic for topic in self.consumer.list_topics().topics]}")
